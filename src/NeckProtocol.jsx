@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 
 const data = {
   phases: [
@@ -115,7 +115,7 @@ const data = {
               how: "Face down. Arms in T (thumbs up), hold 3 sec. Then W (elbows bent, squeeze blades), hold 3 sec. No weight. Skip Y if it aggravates your shoulder.",
               sets: "2 × 8 each position",
               reps: "3 sec hold",
-              cue: "⚠️ Shoulder note: Zero weight. Skip Y position if anterior shoulder discomfort.",
+              cue: "Shoulder note: Zero weight. Skip Y position if anterior shoulder discomfort.",
               video: null,
             },
             {
@@ -243,73 +243,12 @@ const data = {
     { when: "Weeks 8–12", what: "Significant correction" },
     { when: "3–6 months", what: "New posture is your default" },
   ],
+  redFlags: [
+    "Numbness or tingling down your arm",
+    "Pain increases with the program",
+    "Symptoms worsen or spread",
+  ],
 };
-
-const PlayIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
-);
-
-const ChevronDown = ({ open }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
-const AlertIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-  </svg>
-);
-
-const ExerciseCard = memo(function ExerciseCard({ ex }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div style={{ background: "#1a1f2e", borderRadius: 10, marginBottom: 8, overflow: "hidden", border: "1px solid #2a3040" }}>
-      <button onClick={() => setOpen(!open)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "none", border: "none", color: "#e8eaf0", fontFamily: "inherit", fontSize: 15, fontWeight: 600, textAlign: "left", cursor: "pointer", gap: 8 }}>
-        <span style={{ flex: 1 }}>{ex.name}</span>
-        <span style={{ fontSize: 12, color: "#6ec8c8", fontWeight: 500, whiteSpace: "nowrap", marginRight: 8 }}>{ex.sets}</span>
-        <ChevronDown open={open} />
-      </button>
-      {open && (
-        <div style={{ padding: "0 16px 14px", borderTop: "1px solid #2a3040" }}>
-          <p style={{ margin: "12px 0 8px", color: "#b0b8c8", fontSize: 14, lineHeight: 1.55 }}>{ex.how}</p>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: ex.cue || ex.video ? 10 : 0 }}>
-            {ex.reps && ex.reps !== "—" && (
-              <div style={{ fontSize: 13, color: "#8892a6" }}>
-                <span style={{ color: "#6ec8c8", fontWeight: 600 }}>Reps: </span>{ex.reps}
-              </div>
-            )}
-          </div>
-          {ex.cue && (
-            <div style={{ display: "flex", gap: 6, alignItems: "flex-start", padding: "8px 10px", background: "#2a2215", borderRadius: 6, marginBottom: ex.video ? 10 : 0, border: "1px solid #4a3a15" }}>
-              <span style={{ color: "#d4a843", marginTop: 1, flexShrink: 0 }}><AlertIcon /></span>
-              <span style={{ fontSize: 13, color: "#d4a843", lineHeight: 1.45 }}>{ex.cue}</span>
-            </div>
-          )}
-          {ex.video && (
-            <a href={ex.video} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "#c0392b", borderRadius: 6, color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none", marginTop: 4 }}>
-              <PlayIcon /> Watch Video
-            </a>
-          )}
-        </div>
-      )}
-    </div>
-  );
-});
-
-function PhaseSection({ section }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, paddingBottom: 6, borderBottom: "1px solid #252a38" }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "#6ec8c8", textTransform: "uppercase", letterSpacing: 0.8 }}>{section.name}</span>
-        <span style={{ fontSize: 12, color: "#6b7385" }}>{section.time}</span>
-      </div>
-      <div className="exercise-grid">
-        {section.exercises.map((ex, i) => <ExerciseCard key={i} ex={ex} />)}
-      </div>
-    </div>
-  );
-}
 
 const TABS = [
   { id: "program", label: "Program" },
@@ -318,137 +257,580 @@ const TABS = [
   { id: "timeline", label: "Timeline" },
 ];
 
+const STORAGE_KEY = "neckProtocolTracker";
+
+function themeTokens(theme, accent) {
+  const dark = theme === "dark";
+  const hue = accent === "amber" ? 80 : accent === "indigo" ? 265 : 195;
+  return {
+    bg: dark ? "oklch(17% 0.014 250)" : "oklch(98% 0.006 250)",
+    surface: dark ? "oklch(22% 0.016 250)" : "oklch(100% 0 0)",
+    surfaceAlt: dark ? "oklch(25% 0.018 250)" : "oklch(96% 0.007 250)",
+    border: dark ? "oklch(32% 0.02 250)" : "oklch(90% 0.012 250)",
+    text: dark ? "oklch(95% 0.008 250)" : "oklch(22% 0.02 250)",
+    textMuted: dark ? "oklch(70% 0.02 250)" : "oklch(45% 0.02 250)",
+    textFaint: dark ? "oklch(52% 0.02 250)" : "oklch(58% 0.02 250)",
+    accent: dark ? `oklch(76% 0.13 ${hue})` : `oklch(50% 0.13 ${hue})`,
+    accentText: dark ? `oklch(15% 0.02 ${hue})` : `oklch(99% 0.006 ${hue})`,
+    accentSoftBg: dark ? `oklch(26% 0.03 ${hue})` : `oklch(94% 0.03 ${hue})`,
+    accentShadow: dark ? `oklch(76% 0.13 ${hue} / 0.35)` : `oklch(50% 0.13 ${hue} / 0.3)`,
+    accentGradient: `linear-gradient(135deg, oklch(${dark ? "80%" : "58%"} 0.13 ${hue}), oklch(${dark ? "68%" : "46%"} 0.14 ${hue + 40}))`,
+    borderShadow: dark ? "oklch(0% 0 0 / 0.3)" : "oklch(50% 0.02 250 / 0.12)",
+    cardShadow: dark
+      ? "0 1px 2px oklch(0% 0 0 / 0.4), 0 8px 24px oklch(0% 0 0 / 0.28)"
+      : "0 1px 2px oklch(50% 0.02 250 / 0.06), 0 8px 20px oklch(50% 0.02 250 / 0.08)",
+    streakColor: dark ? "oklch(72% 0.16 45)" : "oklch(55% 0.17 45)",
+    warnBg: dark ? "oklch(27% 0.05 80)" : "oklch(94% 0.05 80)",
+    warnBorder: dark ? "oklch(40% 0.08 80)" : "oklch(80% 0.09 80)",
+    warnText: dark ? "oklch(78% 0.13 80)" : "oklch(45% 0.13 80)",
+    dangerBg: dark ? "oklch(25% 0.05 25)" : "oklch(94% 0.045 25)",
+    dangerBorder: dark ? "oklch(38% 0.09 25)" : "oklch(82% 0.09 25)",
+    dangerText: dark ? "oklch(70% 0.17 25)" : "oklch(50% 0.18 25)",
+    dangerTextSoft: dark ? "oklch(66% 0.1 25)" : "oklch(45% 0.1 25)",
+  };
+}
+
+function cssVars(t) {
+  return {
+    "--bg": t.bg,
+    "--surface": t.surface,
+    "--surface-alt": t.surfaceAlt,
+    "--border": t.border,
+    "--text": t.text,
+    "--text-muted": t.textMuted,
+    "--text-faint": t.textFaint,
+    "--accent": t.accent,
+    "--accent-text": t.accentText,
+    "--accent-soft-bg": t.accentSoftBg,
+    "--accent-shadow": t.accentShadow,
+    "--accent-gradient": t.accentGradient,
+    "--border-shadow": t.borderShadow,
+    "--card-shadow": t.cardShadow,
+    "--streak-color": t.streakColor,
+    "--warn-bg": t.warnBg,
+    "--warn-border": t.warnBorder,
+    "--warn-text": t.warnText,
+    "--danger-bg": t.dangerBg,
+    "--danger-border": t.dangerBorder,
+    "--danger-text": t.dangerText,
+    "--danger-text-soft": t.dangerTextSoft,
+  };
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function diffDays(a, b) {
+  return Math.round((new Date(a) - new Date(b)) / 86400000);
+}
+
+function parsePhaseDays(weeksStr) {
+  if (/\+/.test(weeksStr)) return Infinity;
+  const nums = (weeksStr.match(/\d+/g) || []).map(Number);
+  if (nums.length >= 2) return (nums[1] - nums[0] + 1) * 7;
+  if (nums.length === 1) return nums[0] * 7;
+  return Infinity;
+}
+
+const initialStore = {
+  theme: "dark",
+  accent: "teal",
+  checked: {},
+  checkedDate: null,
+  completedPhases: [],
+  streak: 0,
+  lastActiveDate: null,
+  daysDone: {},
+};
+
+const NeckIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z" />
+    <path d="M8 14v2a4 4 0 0 0 8 0v-2" />
+    <path d="M12 20v2" />
+  </svg>
+);
+
+const FlameIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c0-1-.5-2-1-2 1.5 1 3 3 3 5.5A5.5 5.5 0 0 1 11.5 19 5.5 5.5 0 0 1 6 13.5C6 8 12 6 12 2z" />
+  </svg>
+);
+
+const MoonIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" />
+  </svg>
+);
+
+const SunIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </svg>
+);
+
+const PlayIcon = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <polygon points="5,3 19,12 5,21" />
+  </svg>
+);
+
+const ChevronDown = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+const AlertIcon = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const CheckBadge = ({ accent, accentText }) => (
+  <svg width="15" height="15" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" fill={accent} />
+    <polyline points="8 12 11 15 16 9" fill="none" stroke={accentText} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const TabIcon = { program: ChecklistTabIcon, videos: PlayIcon, desk: MonitorIcon, timeline: ClockIcon };
+
+function ChecklistTabIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  );
+}
+
+function MonitorIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 3" />
+    </svg>
+  );
+}
+
+const ExerciseCard = memo(function ExerciseCard({ ex, index, checked, open, onToggleCheck, onToggleOpen }) {
+  return (
+    <div className={`exercise-card${checked ? " checked" : ""}`} style={{ animationDelay: `${index * 45}ms` }}>
+      <div className="exercise-row">
+        <button
+          className={`ex-checkbox${checked ? " checked" : ""}`}
+          onClick={onToggleCheck}
+          aria-label="Mark done"
+        >
+          {checked && <CheckIcon />}
+        </button>
+        <button className={`ex-toggle${checked ? " checked" : ""}`} onClick={onToggleOpen}>
+          <span className="ex-name">{ex.name}</span>
+          <span className="ex-sets">{ex.sets}</span>
+          <span className={`ex-chevron${open ? " open" : ""}`}>
+            <ChevronDown />
+          </span>
+        </button>
+      </div>
+      {open && (
+        <div className="ex-detail">
+          <p className="ex-how">{ex.how}</p>
+          {ex.reps && ex.reps !== "—" && (
+            <div className="ex-reps">
+              <span className="label">Reps: </span>
+              {ex.reps}
+            </div>
+          )}
+          {ex.cue && (
+            <div className="ex-cue">
+              <AlertIcon />
+              <span>{ex.cue}</span>
+            </div>
+          )}
+          {ex.video && (
+            <a href={ex.video} target="_blank" rel="noopener noreferrer" className="ex-video-btn">
+              <PlayIcon size={12} /> Watch video
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
+function PhaseSection({ section, checked, openEx, phaseId, sectionIndex, onToggleCheck, onToggleOpen }) {
+  return (
+    <div className="section-block">
+      <div className="section-header">
+        <span className="section-name">{section.name}</span>
+        <span className="section-time">{section.time}</span>
+      </div>
+      <div className="exercise-grid">
+        {section.exercises.map((ex, i) => {
+          const key = `${phaseId}-${sectionIndex}-${i}`;
+          return (
+            <ExerciseCard
+              key={key}
+              ex={ex}
+              index={i}
+              checked={!!checked[key]}
+              open={!!openEx[key]}
+              onToggleCheck={() => onToggleCheck(key)}
+              onToggleOpen={() => onToggleOpen(key)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function NeckProtocol() {
-  const [activePhase, setActivePhase] = useState(0);
+  const [store, setStore] = useState(initialStore);
+  const [loaded, setLoaded] = useState(false);
+  const [activePhaseIdx, setActivePhaseIdx] = useState(0);
   const [tab, setTab] = useState("program");
+  const [openEx, setOpenEx] = useState({});
+
+  useEffect(() => {
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch (e) {
+      saved = {};
+    }
+    const today = todayStr();
+    let checked = saved.checked || {};
+    let streak = saved.streak || 0;
+    const lastActiveDate = saved.lastActiveDate || null;
+    if (saved.checkedDate !== today) checked = {};
+    if (lastActiveDate && lastActiveDate !== today && diffDays(today, lastActiveDate) > 1) {
+      streak = 0;
+    }
+    const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    setStore({
+      theme: saved.theme || (prefersLight ? "light" : "dark"),
+      accent: saved.accent || "teal",
+      checked,
+      checkedDate: today,
+      completedPhases: saved.completedPhases || [],
+      streak,
+      lastActiveDate,
+      daysDone: saved.daysDone || {},
+    });
+    setLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch (e) {
+      /* ignore */
+    }
+  }, [loaded, store]);
+
+  const t = useMemo(() => themeTokens(store.theme, store.accent), [store.theme, store.accent]);
+
+  const enrichedPhases = useMemo(
+    () =>
+      data.phases.map((p) => {
+        const keys = [];
+        p.sections.forEach((sec, si) => sec.exercises.forEach((ex, ei) => keys.push(`${p.id}-${si}-${ei}`)));
+        const doneCount = keys.filter((k) => store.checked[k]).length;
+        const total = keys.length;
+        const totalDays = parsePhaseDays(p.weeks);
+        const daysDone = store.daysDone[p.id] || 0;
+        const dayPercent = isFinite(totalDays) ? Math.min(100, Math.round((daysDone / totalDays) * 100)) : 100;
+        return { ...p, keys, doneCount, total, totalDays, daysDone, dayPercent };
+      }),
+    [store.checked, store.daysDone]
+  );
+
+  const activePhase = enrichedPhases[activePhaseIdx];
+  const isInfinitePhase = !isFinite(activePhase.totalDays);
+  const heroPercent = activePhase.dayPercent;
+  const heroMessage =
+    activePhase.daysDone === 0
+      ? "Let's get started"
+      : !isInfinitePhase && activePhase.daysDone >= activePhase.totalDays
+      ? "Phase complete!"
+      : "Keep going";
+
+  const toggleTheme = () => setStore((s) => ({ ...s, theme: s.theme === "dark" ? "light" : "dark" }));
+
+  const selectPhase = (i) => setActivePhaseIdx(i);
+  const selectTab = (id) => setTab(id);
+  const toggleExOpen = (key) => setOpenEx((o) => ({ ...o, [key]: !o[key] }));
+
+  const toggleExCheck = (key) => {
+    setStore((s) => ({ ...s, checked: { ...s.checked, [key]: !s.checked[key] } }));
+  };
+
+  const completeToday = () => {
+    const today = todayStr();
+    setStore((s) => {
+      const totalDays = activePhase.totalDays;
+      const current = s.daysDone[activePhase.id] || 0;
+      const nextDays = isFinite(totalDays) ? Math.min(totalDays, current + 1) : current + 1;
+      const daysDone = { ...s.daysDone, [activePhase.id]: nextDays };
+      let streak = s.streak;
+      let lastActiveDate = s.lastActiveDate;
+      if (lastActiveDate !== today) {
+        streak += 1;
+        lastActiveDate = today;
+      }
+      let completedPhases = s.completedPhases;
+      if (isFinite(totalDays) && nextDays >= totalDays && !completedPhases.includes(activePhase.id)) {
+        completedPhases = [...completedPhases, activePhase.id];
+      }
+      return { ...s, daysDone, streak, lastActiveDate, completedPhases, checked: {} };
+    });
+  };
 
   return (
-    <div className="app-container" style={{ minHeight: "100vh", background: "#0f1219", color: "#e8eaf0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    <div className="app-container" style={cssVars(t)}>
+      <div className="app-glow" />
+      <div className="app-inner">
+        {/* Header */}
+        <div className="header-row">
+          <div className="header-left">
+            <div className="icon-tile" style={{ color: t.accentText }}>
+              <NeckIcon />
+            </div>
+            <div>
+              <h1 className="header-title">Neck Protocol</h1>
+              <p className="header-subtitle">Release · Activate · Strengthen · Maintain</p>
+            </div>
+          </div>
+          <div className="header-right">
+            <div className="streak-pill">
+              <span className={`streak-flame${store.streak > 0 ? " active" : ""}`}>
+                <FlameIcon />
+              </span>
+              <span className="streak-count">{store.streak}</span>
+            </div>
+            <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
+              {store.theme === "dark" ? <MoonIcon key="moon" /> : <SunIcon key="sun" />}
+            </button>
+          </div>
+        </div>
 
-      {/* Header */}
-      <div style={{ padding: "20px 16px 0", textAlign: "center" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: -0.5, color: "#fff" }}>NECK PROTOCOL</h1>
-        <p style={{ fontSize: 13, color: "#6b7385", margin: "4px 0 16px" }}>Release · Activate · Strengthen · Maintain</p>
-      </div>
+        {/* Hero progress */}
+        <div className="hero-card">
+          <div
+            className="hero-ring"
+            style={{ background: `conic-gradient(${t.accent} ${heroPercent}%, ${t.border} 0)` }}
+          >
+            <div className="hero-ring-inner">{isInfinitePhase ? "∞" : `${heroPercent}%`}</div>
+          </div>
+          <div>
+            <div className="hero-label">Phase {activePhaseIdx + 1}</div>
+            <div className="hero-value">
+              Day {activePhase.daysDone}
+              {!isInfinitePhase && <span className="unit"> / {activePhase.totalDays}</span>}
+            </div>
+            <div className="hero-message">
+              {activePhase.title} — {heroMessage}
+            </div>
+          </div>
+        </div>
 
-      {/* Tab bar */}
-      <div style={{ display: "flex", gap: 4, padding: "0 12px", marginBottom: 16, overflowX: "auto" }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "10px 0", fontSize: 13, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "#0f1219" : "#8892a6", background: tab === t.id ? "#6ec8c8" : "#1a1f2e", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap", minWidth: 70 }}>{t.label}</button>
-        ))}
-      </div>
-
-      {/* PROGRAM TAB */}
-      {tab === "program" && (
-        <div style={{ padding: "0 12px 40px" }}>
-
-          {/* Phase selector */}
-          <div className="phase-grid">
-            {data.phases.map((p, i) => (
-              <button key={p.id} onClick={() => setActivePhase(i)} style={{ padding: "12px 10px", background: activePhase === i ? "#1e2a38" : "#14181f", border: activePhase === i ? "2px solid #6ec8c8" : "2px solid #1e2330", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
-                <div style={{ fontSize: 11, color: activePhase === i ? "#6ec8c8" : "#5a6375", fontWeight: 600, marginBottom: 2 }}>{p.weeks}</div>
-                <div style={{ fontSize: 14, color: activePhase === i ? "#fff" : "#8892a6", fontWeight: 700 }}>{p.title}</div>
+        {/* Tab bar */}
+        <div className="tab-bar">
+          {TABS.map((tb) => {
+            const Icon = TabIcon[tb.id];
+            return (
+              <button
+                key={tb.id}
+                className={`tab-btn${tab === tb.id ? " active" : ""}`}
+                onClick={() => selectTab(tb.id)}
+              >
+                <Icon />
+                {tb.label}
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          {/* Active phase info */}
-          <div style={{ padding: "10px 14px", background: "#151a25", borderRadius: 8, marginBottom: 16, border: "1px solid #252a38" }}>
-            <div style={{ fontSize: 12, color: "#6ec8c8", fontWeight: 600 }}>{data.phases[activePhase].freq}</div>
-          </div>
+        {/* PROGRAM TAB */}
+        {tab === "program" && (
+          <div className="tab-content">
+            <div className="phase-grid">
+              {enrichedPhases.map((p, i) => (
+                <button
+                  key={p.id}
+                  className={`phase-card${activePhaseIdx === i ? " active" : ""}`}
+                  onClick={() => selectPhase(i)}
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <div className="phase-top-row">
+                    <span className="phase-weeks">{p.weeks}</span>
+                    {store.completedPhases.includes(p.id) && (
+                      <span className="phase-badge">
+                        <CheckBadge accent={t.accent} accentText={t.accentText} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="phase-title">{p.title}</div>
+                  <div className="phase-progress-row">
+                    <div className="phase-progress-track">
+                      <div className="phase-progress-fill" style={{ width: `${p.dayPercent}%` }} />
+                    </div>
+                    <span className="phase-days-label">{isFinite(p.totalDays) ? `${p.dayPercent}%` : "∞"}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
 
-          {/* Sections + exercises */}
-          {data.phases[activePhase].sections.map((sec, i) => <PhaseSection key={i} section={sec} />)}
-
-          {/* Phase 3 warning */}
-          {activePhase === 2 && (
-            <div style={{ display: "flex", gap: 8, padding: "12px 14px", background: "#2a1515", borderRadius: 8, border: "1px solid #4a2020", marginTop: 8 }}>
-              <span style={{ color: "#e05555", flexShrink: 0, marginTop: 1 }}><AlertIcon /></span>
+            <div className="freq-bar">
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#e05555", marginBottom: 4 }}>Before starting Phase 3</div>
-                <div style={{ fontSize: 13, color: "#c07070", lineHeight: 1.5 }}>Get a cervical MRI. You've had symptoms 1-3 years with movement-provoked pain and no dedicated neck imaging. Rule out disc issues before progressive loading.</div>
-              </div>
-            </div>
-          )}
-
-          {/* No bridges warning */}
-          {(activePhase === 2 || activePhase === 3) && (
-            <div style={{ display: "flex", gap: 8, padding: "12px 14px", background: "#2a1515", borderRadius: 8, border: "1px solid #4a2020", marginTop: 8 }}>
-              <span style={{ color: "#e05555", flexShrink: 0, marginTop: 1 }}><AlertIcon /></span>
-              <span style={{ fontSize: 13, color: "#c07070", lineHeight: 1.5 }}>Do NOT do neck bridges. Excessive cervical compression — risk of bone spurs.</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* VIDEOS TAB */}
-      {tab === "videos" && (
-        <div style={{ padding: "0 12px 40px" }}>
-          <p style={{ fontSize: 13, color: "#6b7385", margin: "0 0 12px 4px" }}>All exercise demonstrations</p>
-          <div className="videos-grid">
-            {data.videos.map((v, i) => (
-              <a key={i} href={v.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: "#1a1f2e", borderRadius: 10, marginBottom: 8, textDecoration: "none", border: "1px solid #2a3040" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: "#c0392b", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <PlayIcon />
+                <div className="freq-text">{activePhase.freq}</div>
+                <div className="freq-done">
+                  Today: {activePhase.doneCount} of {activePhase.total} done
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 600, color: "#e8eaf0" }}>{v.name}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* DESK SETUP TAB */}
-      {tab === "desk" && (
-        <div style={{ padding: "0 12px 40px" }}>
-          <div style={{ padding: "14px 16px", background: "#1e2a38", borderRadius: 10, border: "2px solid #6ec8c8", marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#6ec8c8", marginBottom: 4 }}>Do this immediately</div>
-            <div style={{ fontSize: 13, color: "#8892a6", lineHeight: 1.5 }}>No exercise protocol will overcome 8-12 hours of bad desk setup. Fix these first.</div>
-          </div>
-          <div className="workstation-grid">
-            {data.workstation.map((w, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 16px", background: "#1a1f2e", borderRadius: 10, marginBottom: 8, border: "1px solid #2a3040" }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#151a25", border: "2px solid #6ec8c8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, fontWeight: 700, color: "#6ec8c8" }}>{i + 1}</div>
-                <span style={{ fontSize: 14, color: "#c8cdd8", lineHeight: 1.45 }}>{w.rule}</span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <button className="reset-btn" onClick={completeToday}>
+                Complete today
+              </button>
+            </div>
 
-      {/* TIMELINE TAB */}
-      {tab === "timeline" && (
-        <div style={{ padding: "0 12px 40px" }}>
-          <p style={{ fontSize: 13, color: "#6b7385", margin: "0 0 16px 4px" }}>What to expect with consistency</p>
-          <div style={{ position: "relative", paddingLeft: 24 }}>
-            <div style={{ position: "absolute", left: 7, top: 8, bottom: 8, width: 2, background: "linear-gradient(to bottom, #6ec8c8, #2a3040)", borderRadius: 2 }} />
-            {data.timeline.map((t, i) => (
-              <div key={i} style={{ position: "relative", marginBottom: 20 }}>
-                <div style={{ position: "absolute", left: -20, top: 4, width: 12, height: 12, borderRadius: "50%", background: "#0f1219", border: "2px solid #6ec8c8" }} />
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#6ec8c8", marginBottom: 2 }}>{t.when}</div>
-                <div style={{ fontSize: 14, color: "#b0b8c8", lineHeight: 1.45 }}>{t.what}</div>
+            {activePhase.sections.map((sec, si) => (
+              <PhaseSection
+                key={si}
+                section={sec}
+                sectionIndex={si}
+                phaseId={activePhase.id}
+                checked={store.checked}
+                openEx={openEx}
+                onToggleCheck={toggleExCheck}
+                onToggleOpen={toggleExOpen}
+              />
+            ))}
+
+            {activePhaseIdx === 2 && (
+              <div className="danger-box">
+                <AlertIcon />
+                <div>
+                  <div className="danger-title">Before starting Phase 3</div>
+                  <div className="danger-text">
+                    Get a cervical MRI. You've had symptoms 1-3 years with movement-provoked pain and no dedicated
+                    neck imaging. Rule out disc issues before progressive loading.
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
 
-          {/* Red flags */}
-          <div style={{ marginTop: 20, padding: "14px 16px", background: "#2a1515", borderRadius: 10, border: "1px solid #4a2020" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#e05555", marginBottom: 8 }}>Stop & get imaging if:</div>
-            {["Numbness or tingling down your arm", "Pain increases with the program", "Symptoms worsen or spread"].map((r, i) => (
-              <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: i < 2 ? 6 : 0 }}>
-                <span style={{ color: "#e05555" }}>×</span>
-                <span style={{ fontSize: 13, color: "#c07070" }}>{r}</span>
+            {(activePhaseIdx === 2 || activePhaseIdx === 3) && (
+              <div className="danger-box">
+                <AlertIcon />
+                <span className="danger-text">
+                  Do NOT do neck bridges. Excessive cervical compression — risk of bone spurs.
+                </span>
               </div>
-            ))}
+            )}
           </div>
+        )}
 
-          {/* Shoulder note */}
-          <div style={{ marginTop: 12, padding: "14px 16px", background: "#151a25", borderRadius: 10, border: "1px solid #252a38" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#8892a6", marginBottom: 4 }}>Shoulder restrictions</div>
-            <div style={{ fontSize: 13, color: "#6b7385", lineHeight: 1.5 }}>No free-weight overhead press or barbell bench. Start prone raises with zero weight. All exercises designed within your clearance.</div>
+        {/* VIDEOS TAB */}
+        {tab === "videos" && (
+          <div className="tab-content">
+            <p className="tab-intro">All exercise demonstrations</p>
+            <div className="videos-grid">
+              {data.videos.map((v, i) => (
+                <a
+                  key={i}
+                  href={v.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="video-row"
+                  style={{ animationDelay: `${i * 50}ms` }}
+                >
+                  <div className="video-icon">
+                    <PlayIcon size={13} />
+                  </div>
+                  <span className="video-name">{v.name}</span>
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* DESK SETUP TAB */}
+        {tab === "desk" && (
+          <div className="tab-content">
+            <div className="desk-callout">
+              <div className="desk-callout-title">Do this immediately</div>
+              <div className="desk-callout-text">
+                No exercise protocol will overcome 8-12 hours of bad desk setup. Fix these first.
+              </div>
+            </div>
+            <div className="workstation-grid">
+              {data.workstation.map((w, i) => (
+                <div key={i} className="desk-row" style={{ animationDelay: `${i * 50}ms` }}>
+                  <div className="desk-badge">{i + 1}</div>
+                  <span className="desk-text">{w.rule}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TIMELINE TAB */}
+        {tab === "timeline" && (
+          <div className="tab-content">
+            <p className="tab-intro">What to expect with consistency</p>
+            <div className="timeline-wrap">
+              <div className="timeline-line" />
+              {data.timeline.map((tl, i) => (
+                <div key={i} className="timeline-item" style={{ animationDelay: `${i * 70}ms` }}>
+                  <div className="timeline-dot" />
+                  <div className="timeline-when">{tl.when}</div>
+                  <div className="timeline-what">{tl.what}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="redflags-box">
+              <div className="redflags-title">Stop &amp; get imaging if:</div>
+              {data.redFlags.map((r, i) => (
+                <div key={i} className="redflag-row">
+                  <span className="mark">×</span>
+                  <span>{r}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="shoulder-note">
+              <div className="shoulder-title">Shoulder restrictions</div>
+              <div className="shoulder-text">
+                No free-weight overhead press or barbell bench. Start prone raises with zero weight. All exercises
+                designed within your clearance.
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
