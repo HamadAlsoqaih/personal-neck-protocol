@@ -1,0 +1,64 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0f1219;
+}
+
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+@media (min-width: 760px) {
+  .app-container {
+    max-width: 860px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .app-container {
+    max-width: 1100px;
+  }
+}
+
+.phase-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 760px) {
+  .phase-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+}
+
+.exercise-grid,
+.videos-grid,
+.workstation-grid {
+  display: block;
+}
+
+@media (min-width: 760px) {
+  .exercise-grid,
+  .videos-grid,
+  .workstation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    align-items: start;
+  }
+}
+
+@media (min-width: 1180px) {
+  .videos-grid,
+  .workstation-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}

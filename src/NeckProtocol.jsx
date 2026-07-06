@@ -304,7 +304,9 @@ function PhaseSection({ section }) {
         <span style={{ fontSize: 14, fontWeight: 700, color: "#6ec8c8", textTransform: "uppercase", letterSpacing: 0.8 }}>{section.name}</span>
         <span style={{ fontSize: 12, color: "#6b7385" }}>{section.time}</span>
       </div>
-      {section.exercises.map((ex, i) => <ExerciseCard key={i} ex={ex} />)}
+      <div className="exercise-grid">
+        {section.exercises.map((ex, i) => <ExerciseCard key={i} ex={ex} />)}
+      </div>
     </div>
   );
 }
@@ -321,7 +323,7 @@ export default function NeckProtocol() {
   const [tab, setTab] = useState("program");
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f1219", color: "#e8eaf0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", maxWidth: 480, margin: "0 auto" }}>
+    <div className="app-container" style={{ minHeight: "100vh", background: "#0f1219", color: "#e8eaf0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 
       {/* Header */}
       <div style={{ padding: "20px 16px 0", textAlign: "center" }}>
@@ -341,7 +343,7 @@ export default function NeckProtocol() {
         <div style={{ padding: "0 12px 40px" }}>
 
           {/* Phase selector */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 16 }}>
+          <div className="phase-grid">
             {data.phases.map((p, i) => (
               <button key={p.id} onClick={() => setActivePhase(i)} style={{ padding: "12px 10px", background: activePhase === i ? "#1e2a38" : "#14181f", border: activePhase === i ? "2px solid #6ec8c8" : "2px solid #1e2330", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
                 <div style={{ fontSize: 11, color: activePhase === i ? "#6ec8c8" : "#5a6375", fontWeight: 600, marginBottom: 2 }}>{p.weeks}</div>
@@ -383,14 +385,16 @@ export default function NeckProtocol() {
       {tab === "videos" && (
         <div style={{ padding: "0 12px 40px" }}>
           <p style={{ fontSize: 13, color: "#6b7385", margin: "0 0 12px 4px" }}>All exercise demonstrations</p>
-          {data.videos.map((v, i) => (
-            <a key={i} href={v.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: "#1a1f2e", borderRadius: 10, marginBottom: 8, textDecoration: "none", border: "1px solid #2a3040" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 8, background: "#c0392b", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <PlayIcon />
-              </div>
-              <span style={{ fontSize: 15, fontWeight: 600, color: "#e8eaf0" }}>{v.name}</span>
-            </a>
-          ))}
+          <div className="videos-grid">
+            {data.videos.map((v, i) => (
+              <a key={i} href={v.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: "#1a1f2e", borderRadius: 10, marginBottom: 8, textDecoration: "none", border: "1px solid #2a3040" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: "#c0392b", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <PlayIcon />
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 600, color: "#e8eaf0" }}>{v.name}</span>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
@@ -401,12 +405,14 @@ export default function NeckProtocol() {
             <div style={{ fontSize: 14, fontWeight: 700, color: "#6ec8c8", marginBottom: 4 }}>Do this immediately</div>
             <div style={{ fontSize: 13, color: "#8892a6", lineHeight: 1.5 }}>No exercise protocol will overcome 8-12 hours of bad desk setup. Fix these first.</div>
           </div>
-          {data.workstation.map((w, i) => (
-            <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 16px", background: "#1a1f2e", borderRadius: 10, marginBottom: 8, border: "1px solid #2a3040" }}>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#151a25", border: "2px solid #6ec8c8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, fontWeight: 700, color: "#6ec8c8" }}>{i + 1}</div>
-              <span style={{ fontSize: 14, color: "#c8cdd8", lineHeight: 1.45 }}>{w.rule}</span>
-            </div>
-          ))}
+          <div className="workstation-grid">
+            {data.workstation.map((w, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 16px", background: "#1a1f2e", borderRadius: 10, marginBottom: 8, border: "1px solid #2a3040" }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#151a25", border: "2px solid #6ec8c8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, fontWeight: 700, color: "#6ec8c8" }}>{i + 1}</div>
+                <span style={{ fontSize: 14, color: "#c8cdd8", lineHeight: 1.45 }}>{w.rule}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
