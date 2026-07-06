@@ -552,6 +552,18 @@ export default function NeckProtocol() {
 
   const t = useMemo(() => themeTokens(store.theme, store.accent), [store.theme, store.accent]);
 
+  useEffect(() => {
+    document.documentElement.style.background = t.bg;
+    document.body.style.background = t.bg;
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+    }
+    meta.content = t.bg;
+  }, [t]);
+
   const enrichedPhases = useMemo(
     () =>
       data.phases.map((p) => {
